@@ -1,0 +1,9 @@
+node_modules
+.env
+/build
+/.idea
+/coverage
+/reports
+/.nyc_output
+/reports
+/.history

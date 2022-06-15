@@ -1,0 +1,85 @@
+version: '3.7'
+
+volumes:
+  mysqldata: {}
+
+services:
+  app:
+    build:
+      context: _fixtures/dockershell
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: 14
+        NPM_VERSION: 6
+        NESTJS_VERSION: 7
+    image: changeme-typescript-starter
+    hostname: changeme-typescript-starter
+    working_dir: /app
+    depends_on:
+      - db
+      - db-testing
+      - phpmyadmin
+    volumes:
+      - ./:/app
+      - ~/.npmrc:/root/.npmrc
+      - ~/.npmrc:/home/node/.npmrc
+      - ~/.npm/:/home/node/.npm/
+      - "${SSH_AUTH_SOCK:-/tmp/_ssh_auth_sock_stub}:${SSH_AUTH_SOCK:-/tmp/_ssh_auth_sock_stub}"
+    ports:
+      - 8080:8080
+    environment:
+      SSH_AUTH_SOCK: "${SSH_AUTH_SOCK:-/tmp/_ssh_auth_sock_stub}"
+      APP_DB_HOST: db
+      APP_DB_USER: app
+      APP_DB_PASS: app
+      APP_DB_NAME: app
+      APP_TEST_DB_HOST: db-testing
+      APP_TEST_DB_USER: root
+      APP_TEST_DB_PASS: root
+      APP_TEST_DB_NAME: app-testing
+
+  db:
+    image: mysql:8.0
+    hostname: db
+    ports:
+      - 3306:3306
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: app
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysqldata:/var/lib/mysql
+
+  # The testing DB service has no volume. That is by design. [wh]
+  db-testing:
+    image: mysql:8.0
+    hostname: db-testing
+    ports:
+      - 3307:3306
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: app-testing
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app
+      MYSQL_ROOT_PASSWORD: root
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    hostname: phpmyadmin
+    ports:
+      - 8079:80
+    environment:
+      PMA_HOSTS: >-
+        db,
+        db-testing,
+      PMA_USER: app
+      PMA_PASSWORD: app
+      UPLOAD_LIMIT: 1024M

@@ -1,0 +1,77 @@
+stages:
+  - test
+  - deploy
+
+variables:
+  MYSQL_DATABASE: app
+  MYSQL_USER: app
+  MYSQL_PASSWORD: app
+  MYSQL_ROOT_PASSWORD: root
+  APP_TEST_DB_HOST: db-testing
+  APP_TEST_DB_USER: root
+  APP_TEST_DB_PASS: root
+  APP_TEST_DB_NAME: app
+
+test app:
+  stage: test
+  image: node:12-alpine
+  services:
+    - name: mysql:8.0
+      alias: db-testing
+      command:
+        - '--character-set-server=utf8mb4'
+        - '--collation-server=utf8mb4_unicode_ci'
+        - '--default-authentication-plugin=mysql_native_password'
+  script:
+    - "apk add bash jq"
+    - "npm ci --unsafe"
+    - "./_fixtures/wait-for-it/wait-for-it.sh -h db-testing -p 3306 -s -t 60 -- npm run test:once"
+    - "echo Overall code coverage: $(jq '.total | map_values(.pct) | add / (. | length)' coverage/coverage-summary.json) %"
+  coverage: '/Overall code coverage: ([\d.]+) %/'
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    reports:
+      junit: reports/unit/junit/junit.xml
+    paths:
+      - coverage/
+      - reports/
+
+test-e2e app:
+  stage: test
+  image: node:12-alpine
+  services:
+    - name: mysql:8.0
+      alias: db-testing
+      command:
+        - '--character-set-server=utf8mb4'
+        - '--collation-server=utf8mb4_unicode_ci'
+        - '--default-authentication-plugin=mysql_native_password'
+  script:
+    - "apk add bash jq"
+    - "npm ci --unsafe"
+    - "./_fixtures/wait-for-it/wait-for-it.sh -h db-testing -p 3306 -s -t 60 -- npm run e2e:once"
+  artifacts:
+    name: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    reports:
+      junit: reports/e2e/junit/junit.xml
+    paths:
+      - reports/
+
+deploy app:
+  stage: deploy
+  image: node:12-alpine
+  # Run for tags that match a version tag [wh]
+  only:
+    - /^v[0-9]+\.[0-9]+\.[0-9]+.*$/
+  script:
+    - "apk add jq sed"
+    # Construct APP_NAME = <name from package.json>-production
+    - "APP_NAME=`cat ./package.json | jq -r .name`-production"
+    # APP_VERSION = taken from commit tag (the part after the v)
+    - "APP_VERSION=`echo $CI_COMMIT_TAG | sed 's/^v//'`"
+    - "docker login -u $CI_DOCKERREG_USER -p $CI_DOCKERREG_PASSWORD $CI_DOCKERREG_URL"
+    - "docker build -f Dockerfile --build-arg BUILD_ENVIRONMENT=production -t $APP_NAME:$APP_VERSION -t $APP_NAME:latest ."
+    - "docker tag $APP_NAME:$APP_VERSION $CI_DOCKERREG_IMAGE_URL/$APP_NAME:$APP_VERSION"
+    - "docker tag $APP_NAME:latest $CI_DOCKERREG_IMAGE_URL/$APP_NAME:latest"
+    - "docker push $CI_DOCKERREG_IMAGE_URL/$APP_NAME:$APP_VERSION"
+    - "docker push $CI_DOCKERREG_IMAGE_URL/$APP_NAME:latest"

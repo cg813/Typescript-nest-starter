@@ -1,0 +1,62 @@
+{
+  "moduleFileExtensions": [
+    "js",
+    "json",
+    "ts"
+  ],
+  "testEnvironment": "node",
+  "rootDir": "src/",
+  "testRegex": "\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "setupFilesAfterEnv": [
+    "<rootDir>/../test/unit/setup.ts"
+  ],
+  "moduleNameMapper": {
+    "^src/(.*)": "<rootDir>/$1",
+    "^test/(.*)": "<rootDir>/../test/$1"
+  },
+  "reporters": [
+    "default",
+    [
+      "jest-html-reporters",
+      {
+        "publicPath": "reports/unit/html",
+        "filename": "index.html"
+      }
+    ],
+    [
+      "jest-junit",
+      {
+        "outputDirectory": "reports/unit/junit"
+      }
+    ]
+  ],
+  "collectCoverageFrom": [
+    "<rootDir>/**/*.ts",
+    "!<rootDir>/**/*.module.ts",
+    "!<rootDir>/**/*.spec.ts",
+    "!<rootDir>/**/*.d.ts",
+    "!<rootDir>/**/*Dto.ts",
+    "!<rootDir>/**/*.dto.ts",
+    "!<rootDir>/config/**/*",
+    "!<rootDir>/migrations/**/*",
+    "!<rootDir>/index.ts",
+    "!<rootDir>/definitions.ts"
+  ],
+  "coverageReporters": [
+    "text-summary",
+    "json",
+    [
+      "html",
+      {
+        "subdir": "html/"
+      }
+    ],
+    "lcov",
+    "clover",
+    "json-summary"
+  ],
+  "coverageDirectory": "../coverage"
+}
